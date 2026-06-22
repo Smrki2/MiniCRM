@@ -7,6 +7,6 @@
         public decimal Value { get; set; }
         public string Status { get; set; } = "New";
         public int CompanyId { get; set; }
-        public Company Company { get; set; } = null;
+        public Company? Company { get; set; }
     }
 }

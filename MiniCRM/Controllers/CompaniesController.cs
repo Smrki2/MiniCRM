@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniCRM.Data;
+using MiniCRM.DTOs;
 using MiniCRM.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace MiniCRM.Controllers
 {
@@ -15,28 +17,73 @@ namespace MiniCRM.Controllers
             _context = context;
         }
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Company>>> GetCompanies()
+        public async Task<ActionResult<IEnumerable<CompanyDto>>> GetCompanies()
         {
-            return await _context.Companies
+            var companies = await _context.Companies
                 .Include(c => c.Contacts)
                 .Include(c => c.SalesLeads)
                 .Include(c => c.Tasks)
                 .ToListAsync();
+
+            var result = companies.Select(c => new CompanyDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Industry = c.Industry,
+                Website = c.Website,
+
+                Contacts = c.Contacts.Select(x => new ContactDto
+                {
+                    Id = x.Id,
+                    FirstName = x.FirstName,
+                    LastName = x.LastName,
+                    Email = x.Email,
+                    Phone = x.Phone,
+
+                    CompanyId = c.Id,
+                    CompanyName = c.Name
+                }).ToList(),
+
+                SalesLeads = c.SalesLeads.Select(x => new SalesLeadDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Value = x.Value,
+                    Status = x.Status
+                }).ToList(),
+
+                Tasks = c.Tasks.Select(x => new TaskItemDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    DueDate = x.DueDate,
+                    IsCompleted = x.IsCompleted
+                }).ToList()
+            });
+
+            return Ok(result);
         }
         [HttpPost]
-        public async Task<ActionResult<Company>> CreateCompany(Company company)
+        public async Task<ActionResult<CompanyDto>> CreateCompany(Company company)
         {
             _context.Companies.Add(company);
-
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(
-                nameof(GetCompany),
-                new { id = company.Id },
-                company);
+            var result = new CompanyDto
+            {
+                Id = company.Id,
+                Name = company.Name,
+                Industry = company.Industry,
+                Website = company.Website,
+                Contacts = new(),
+                SalesLeads = new(),
+                Tasks = new()
+            };
+
+            return CreatedAtAction(nameof(GetCompany), new { id = company.Id }, result);
         }
         [HttpGet("{id}")]
-        public async Task<ActionResult<Company>> GetCompany(int id)
+        public async Task<ActionResult<CompanyDto>> GetCompany(int id)
         {
             var company = await _context.Companies
                 .Include(c => c.Contacts)
@@ -44,11 +91,46 @@ namespace MiniCRM.Controllers
                 .Include(c => c.Tasks)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
-            if(company == null)
-            {
+            if (company == null)
                 return NotFound();
-            }
-            return company;
+
+            var result = new CompanyDto
+            {
+                Id = company.Id,
+                Name = company.Name,
+                Industry = company.Industry,
+                Website = company.Website,
+
+                Contacts = company.Contacts.Select(x => new ContactDto
+                {
+                    Id = x.Id,
+                    FirstName = x.FirstName,
+                    LastName = x.LastName,
+                    Email = x.Email,
+                    Phone = x.Phone,
+
+                    CompanyId = company.Id,
+                    CompanyName = company.Name
+                }).ToList(),
+
+                SalesLeads = company.SalesLeads.Select(x => new SalesLeadDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Value = x.Value,
+                    Status = x.Status
+                }).ToList(),
+
+                Tasks = company.Tasks.Select(x => new TaskItemDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    DueDate = x.DueDate,
+                    IsCompleted = x.IsCompleted
+                }).ToList()
+            };
+
+            return Ok(result);
         }
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCompany(int id, Company company)
